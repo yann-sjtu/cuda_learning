@@ -3,7 +3,7 @@
 #include <cuda_runtime.h>
 #include <stdint.h>
 #include <cuda.h>
-#include "time.hpp"
+#include "timer.hpp"
 
 __host__ inline void checkCudaError(cudaError_t code, const char *file, int line)
 {
@@ -32,12 +32,14 @@ void process(uint64_t *data, uint64_t N) {
 
     cudaMemcpy(d_data, data, N * sizeof(uint64_t), cudaMemcpyHostToDevice);
 
+    int blockSize = 64;
+    int numBlocks = (N + blockSize - 1) / blockSize;
     addOneToEachElement<<<numBlocks, blockSize>>>(d_data, N);
     CHECKCUDAERR(cudaGetLastError());
 
-    cudaMemcpy(h_data, d_data, N * sizeof(uint64_t), cudaMemcpyDeviceToHost);
+    cudaMemcpy(data, d_data, N * sizeof(uint64_t), cudaMemcpyDeviceToHost);
     for (uint64_t i = 0; i < 8; ++i) {
-        printf("h_data: %lu\n", h_data[i]);
+        printf("h_data: %lu\n", data[i]);
     }
 
     cudaFree(d_data);
@@ -93,21 +95,21 @@ int main() {
     memcpy(h_data, data, N * sizeof(uint64_t));
     TimerStart(malloc_test);
     process(h_data, N);
-    TimeStopAndLog(malloc_test);
+    TimerStopAndLog(malloc_test);
     free(h_data);
 
     uint64_t *h_data1 = (uint64_t *)cudaMallocHost(N * sizeof(uint64_t));
     memcpy(h_data1, data, N * sizeof(uint64_t));
     TimerStart(cudaMallocHost_test);
     process(h_data1, N);
-    TimeStopAndLog(cudaMallocHost_test);
+    TimerStopAndLog(cudaMallocHost_test);
     cudaFreeHost(h_data1);
 
     uint64_t *h_data2 = (uint64_t *)cudaMallocManaged(N * sizeof(uint64_t));
     memcpy(h_data2, data, N * sizeof(uint64_t));
     TimerStart(cudaMallocManaged_test);
     process(h_data2, N);
-    TimeStopAndLog(cudaMallocManaged_test);
+    TimerStopAndLog(cudaMallocManaged_test);
     cudaFreeHost(h_data2);
 
     cudaFree(data);
