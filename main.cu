@@ -54,9 +54,9 @@ int main() {
     cudaSetDevice(0);
     CHECKCUDAERR(cudaStreamCreate(&ss));
 
-    uint64_t N = (1<<31);
+    uint64_t N = (uint64_t(1)<<31);
     uint64_t *data;
-    cudaMallocManaged(&data, N * sizeof(uint64_t), cudaMemAttachHost);
+    cudaMallocManaged(&data, N * sizeof(uint64_t));
 
 
     // 初始化host memory数据

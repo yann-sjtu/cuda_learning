@@ -1,1 +1,1 @@
-/usr/local/cuda/bin/nvcc -o test main.cu time.cpp
+/usr/local/cuda/bin/nvcc -o test main.cu timer.cpp
