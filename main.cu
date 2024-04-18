@@ -89,7 +89,7 @@ int main() {
 #pragma omp parallel for
     for (uint64_t d = 0; d < deviceCount; ++d) {
         cudaSetDevice(d);
-        process(h_data + d * n_per_piece, n_per_piece, ss[d]);
+        process(h_data + d * n_per_device, n_per_device, ss[d]);
     }
     TimerStopAndLog(malloc_test);
     free(h_data);
@@ -104,7 +104,7 @@ int main() {
 #pragma omp parallel for
     for (uint64_t d = 0; d < deviceCount; ++d) {
         cudaSetDevice(d);
-        process(h_data1 + d * n_per_piece, n_per_piece, ss[d]);
+        process(h_data1 + d * n_per_device, n_per_device, ss[d]);
     }
     TimerStopAndLog(cudaMallocHost_test);
     cudaFreeHost(h_data1);
@@ -119,7 +119,7 @@ int main() {
 #pragma omp parallel for
     for (uint64_t d = 0; d < deviceCount; ++d) {
         cudaSetDevice(d);
-        process(h_data2 + d * n_per_piece, n_per_piece, ss[d]);
+        process(h_data2 + d * n_per_device, n_per_device, ss[d]);
     }
     TimerStopAndLog(cudaMallocManaged_test);
     cudaFree(h_data2);
