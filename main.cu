@@ -95,7 +95,7 @@ int main() {
     uint64_t *h_data = (uint64_t *)malloc(N * sizeof(uint64_t));
     memcpy(h_data, data, N * sizeof(uint64_t));
     TimerStart(malloc_test);
-    process(h_data, N);
+    process(h_data, N, ss);
     TimerStopAndLog(malloc_test);
     free(h_data);
 
@@ -103,7 +103,7 @@ int main() {
     cudaMallocHost(&h_data1, N * sizeof(uint64_t));
     memcpy(h_data1, data, N * sizeof(uint64_t));
     TimerStart(cudaMallocHost_test);
-    process(h_data1, N);
+    process(h_data1, N, ss);
     TimerStopAndLog(cudaMallocHost_test);
     cudaFreeHost(h_data1);
 
@@ -111,11 +111,12 @@ int main() {
     cudaMallocManaged(&h_data2, N * sizeof(uint64_t));
     memcpy(h_data2, data, N * sizeof(uint64_t));
     TimerStart(cudaMallocManaged_test);
-    process(h_data2, N);
+    process(h_data2, N, ss);
     TimerStopAndLog(cudaMallocManaged_test);
     cudaFree(h_data2);
 
     cudaFree(data);
+    CHECKCUDAERR(cudaStreamDestroy(ss));
 
     return 0;
 }
