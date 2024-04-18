@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <sys/time.h>
 #include <string>
+#include <iostream>
 
 // Returns the time difference in us
 uint64_t TimeDiff(const struct timeval &startTime, const struct timeval &endTime);

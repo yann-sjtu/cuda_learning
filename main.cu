@@ -98,19 +98,21 @@ int main() {
     TimerStopAndLog(malloc_test);
     free(h_data);
 
-    uint64_t *h_data1 = (uint64_t *)cudaMallocHost(N * sizeof(uint64_t));
+    uint64_t *h_data1;
+    cudaMallocHost(&h_data1, N * sizeof(uint64_t));
     memcpy(h_data1, data, N * sizeof(uint64_t));
     TimerStart(cudaMallocHost_test);
     process(h_data1, N);
     TimerStopAndLog(cudaMallocHost_test);
     cudaFreeHost(h_data1);
 
-    uint64_t *h_data2 = (uint64_t *)cudaMallocManaged(N * sizeof(uint64_t));
+    uint64_t *h_data2;
+    cudaMallocManaged(&h_data2, N * sizeof(uint64_t));
     memcpy(h_data2, data, N * sizeof(uint64_t));
     TimerStart(cudaMallocManaged_test);
     process(h_data2, N);
     TimerStopAndLog(cudaMallocManaged_test);
-    cudaFreeHost(h_data2);
+    cudaFree(h_data2);
 
     cudaFree(data);
 
