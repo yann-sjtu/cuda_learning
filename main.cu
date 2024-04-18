@@ -30,17 +30,17 @@ void process(uint64_t *data, uint64_t N, cudaStream_t ss) {
     uint64_t *d_data;
     cudaMalloc(&d_data, N * sizeof(uint64_t));
 
-    cudaMemcpy(d_data, data, N * sizeof(uint64_t), cudaMemcpyHostToDevice);
+    cudaMemcpyAsync(d_data, data, N * sizeof(uint64_t), cudaMemcpyHostToDevice, ss);
 
     int blockSize = 64;
     int numBlocks = (N + blockSize - 1) / blockSize;
     addOneToEachElement<<<numBlocks, blockSize, 0, ss>>>(d_data, N);
     CHECKCUDAERR(cudaGetLastError());
-    CHECKCUDAERR(cudaStreamSynchronize(ss));
 
-    cudaMemcpy(data, d_data, N * sizeof(uint64_t), cudaMemcpyDeviceToHost);
+    cudaMemcpyAsync(data, d_data, N * sizeof(uint64_t), cudaMemcpyDeviceToHost, ss);
+    CHECKCUDAERR(cudaStreamSynchronize(ss));
     for (uint64_t i = 0; i < 8; ++i) {
-        printf("h_data: %lu\n", data[i]);
+        printf("data: %lu\n", data[i]);
     }
 
     cudaFree(d_data);
