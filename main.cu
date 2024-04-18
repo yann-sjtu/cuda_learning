@@ -125,7 +125,9 @@ int main() {
     cudaFree(h_data2);
 
     cudaFree(data);
-    CHECKCUDAERR(cudaStreamDestroy(ss));
+    for (uint64_t d = 0; d < deviceCount; ++d) {
+        CHECKCUDAERR(cudaStreamDestroy(ss[d]));
+    }
 
     return 0;
 }
