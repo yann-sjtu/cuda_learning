@@ -26,7 +26,7 @@ __global__ void addOneToEachElement(uint64_t *data, uint64_t N) {
     }
 }
 
-void process(uint64_t *data, uint64_t N) {
+void process(uint64_t *data, uint64_t N, cudaStream_t ss) {
     uint64_t *d_data;
     cudaMalloc(&d_data, N * sizeof(uint64_t));
 
@@ -34,8 +34,9 @@ void process(uint64_t *data, uint64_t N) {
 
     int blockSize = 64;
     int numBlocks = (N + blockSize - 1) / blockSize;
-    addOneToEachElement<<<numBlocks, blockSize>>>(d_data, N);
+    addOneToEachElement<<<numBlocks, blockSize, 0, ss>>>(d_data, N);
     CHECKCUDAERR(cudaGetLastError());
+    CHECKCUDAERR(cudaStreamSynchronize(ss));
 
     cudaMemcpy(data, d_data, N * sizeof(uint64_t), cudaMemcpyDeviceToHost);
     for (uint64_t i = 0; i < 8; ++i) {
@@ -54,7 +55,7 @@ int main() {
     cudaSetDevice(0);
     CHECKCUDAERR(cudaStreamCreate(&ss));
 
-    uint64_t N = (uint64_t(1)<<31);
+    uint64_t N = (uint64_t(1)<<30);
     uint64_t *data;
     cudaMallocManaged(&data, N * sizeof(uint64_t));
 
