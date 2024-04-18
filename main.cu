@@ -30,35 +30,37 @@ void process(uint64_t *data, uint64_t N, cudaStream_t ss) {
     uint64_t *d_data;
     cudaMalloc(&d_data, N * sizeof(uint64_t));
 
-    cudaMemcpyAsync(d_data, data, N * sizeof(uint64_t), cudaMemcpyHostToDevice, ss);
+    CHECKCUDAERR(cudaMemcpyAsync(d_data, data, N * sizeof(uint64_t), cudaMemcpyHostToDevice, ss));
 
     int blockSize = 64;
     int numBlocks = (N + blockSize - 1) / blockSize;
     addOneToEachElement<<<numBlocks, blockSize, 0, ss>>>(d_data, N);
-    CHECKCUDAERR(cudaGetLastError());
 
-    cudaMemcpyAsync(data, d_data, N * sizeof(uint64_t), cudaMemcpyDeviceToHost, ss);
+    CHECKCUDAERR(cudaMemcpyAsync(data, d_data, N * sizeof(uint64_t), cudaMemcpyDeviceToHost, ss));
+    CHECKCUDAERR(cudaGetLastError());
     CHECKCUDAERR(cudaStreamSynchronize(ss));
-    for (uint64_t i = 0; i < 8; ++i) {
+    for (uint64_t i = 0; i < 2; ++i) {
         printf("data: %lu\n", data[i]);
     }
 
     cudaFree(d_data);
 }
 
+#define MAX_GPUS 16
+
 int main() {
     int deviceCount;
     CHECKCUDAERR(cudaGetDeviceCount(&deviceCount));
     printf("Detected %d CUDA Capable device(s).\n", deviceCount);
 
-    cudaStream_t ss;
-    cudaSetDevice(0);
-    CHECKCUDAERR(cudaStreamCreate(&ss));
+    cudaStream_t ss[MAX_GPUS];
+    for (uint64_t d = 0; d < deviceCount; ++d) {
+        cudaSetDevice(d);
+        CHECKCUDAERR(cudaStreamCreate(&ss[d]));
+    }
 
-    uint64_t N = (uint64_t(1)<<30);
-    uint64_t *data;
-    cudaMallocManaged(&data, N * sizeof(uint64_t));
-
+    uint64_t N = (uint64_t(1)<<32);
+    uint64_t *data = (uint64_t *)malloc(N * sizeof(uint64_t));
 
     // 初始化host memory数据
     for (uint64_t i = 0; i < N; ++i) {
@@ -73,45 +75,52 @@ int main() {
     cudaMemGetInfo(&free_mem, &total_mem);
     printf("1. free_mem: %lu, total_mem: %lu\n", free_mem>>20, total_mem>>20);
 
-    int blockSize = 64;
-    int numBlocks = (N + blockSize - 1) / blockSize;
-    addOneToEachElement<<<numBlocks, blockSize, 0, ss>>>(data, N);
-    CHECKCUDAERR(cudaGetLastError());
-    CHECKCUDAERR(cudaStreamSynchronize(ss));
-
-    for (uint64_t i = 0; i < 8; ++i) {
-        printf("data: %lu\n", data[i]);
-    }
-
-    cudaMemGetInfo(&free_mem, &total_mem);
-    printf("2. free_mem: %lu, total_mem: %lu\n", free_mem>>20, total_mem>>20);
-
-    CHECKCUDAERR(cudaMemPrefetchAsync(data, N * sizeof(uint64_t), cudaCpuDeviceId, ss));
-    CHECKCUDAERR(cudaStreamSynchronize(ss));
-
-    cudaMemGetInfo(&free_mem, &total_mem);
-    printf("3. free_mem: %lu, total_mem: %lu\n", free_mem>>20, total_mem>>20);
+    uint64_t n_per_device = N / deviceCount;
+    uint64_t parallel_n = 64;
+    uint64_t n_per_piece = N / parallel_n;
 
     uint64_t *h_data = (uint64_t *)malloc(N * sizeof(uint64_t));
-    memcpy(h_data, data, N * sizeof(uint64_t));
+#pragma omp parallel for
+    for (uint64_t i = 0; i < parallel_n; ++i) {
+        memcpy(h_data + i * n_per_piece, data + i * n_per_piece, n_per_piece * sizeof(uint64_t));
+    }
+
     TimerStart(malloc_test);
-    process(h_data, N, ss);
+#pragma omp parallel for
+    for (uint64_t d = 0; d < deviceCount; ++d) {
+        cudaSetDevice(d);
+        process(h_data + d * n_per_piece, n_per_piece, ss[d]);
+    }
     TimerStopAndLog(malloc_test);
     free(h_data);
 
     uint64_t *h_data1;
     cudaMallocHost(&h_data1, N * sizeof(uint64_t));
-    memcpy(h_data1, data, N * sizeof(uint64_t));
+#pragma omp parallel for
+    for (uint64_t i = 0; i < parallel_n; ++i) {
+        memcpy(h_data1 + i * n_per_piece, data + i * n_per_piece, n_per_piece * sizeof(uint64_t));
+    }
     TimerStart(cudaMallocHost_test);
-    process(h_data1, N, ss);
+#pragma omp parallel for
+    for (uint64_t d = 0; d < deviceCount; ++d) {
+        cudaSetDevice(d);
+        process(h_data1 + d * n_per_piece, n_per_piece, ss[d]);
+    }
     TimerStopAndLog(cudaMallocHost_test);
     cudaFreeHost(h_data1);
 
     uint64_t *h_data2;
     cudaMallocManaged(&h_data2, N * sizeof(uint64_t));
-    memcpy(h_data2, data, N * sizeof(uint64_t));
+#pragma omp parallel for
+    for (uint64_t i = 0; i < parallel_n; ++i) {
+        memcpy(h_data1 + i * n_per_piece, data + i * n_per_piece, n_per_piece * sizeof(uint64_t));
+    }
     TimerStart(cudaMallocManaged_test);
-    process(h_data2, N, ss);
+#pragma omp parallel for
+    for (uint64_t d = 0; d < deviceCount; ++d) {
+        cudaSetDevice(d);
+        process(h_data2 + d * n_per_piece, n_per_piece, ss[d]);
+    }
     TimerStopAndLog(cudaMallocManaged_test);
     cudaFree(h_data2);
 
